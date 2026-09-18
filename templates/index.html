@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Darkroom — AI Photo Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1a1613;
+    --surface:#241f1b;
+    --surface-hi:#2e2822;
+    --ink:#f2ede4;
+    --ink-dim:#b9b0a2;
+    --line:#3a332c;
+    --safelight:#c1272d;
+    --paper:#f2c14e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{overflow-x:hidden;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  a{color:inherit;}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px;}
+
+  header.top{
+    padding:28px 0 0;
+    border-bottom:1px solid var(--line);
+  }
+  .top-row{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:22px;}
+  .brand{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+  .brand span{color:var(--safelight);}
+  .tagline{font-size:13px;color:var(--ink-dim);}
+
+  .hero{padding:56px 0 40px;}
+  .hero h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:44px;
+    max-width:11ch;
+    line-height:1.08;
+    margin-bottom:18px;
+  }
+  .hero p{
+    max-width:52ch;
+    color:var(--ink-dim);
+    font-size:16px;
+  }
+
+  /* film strip tab switcher */
+  .strip{
+    display:flex;
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:4px;
+    overflow:hidden;
+    margin:40px 0 32px;
+  }
+  .strip button{
+    flex:1;
+    background:var(--surface);
+    color:var(--ink-dim);
+    border:none;
+    padding:16px 10px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+    position:relative;
+  }
+  .strip button.active{
+    background:var(--surface-hi);
+    color:var(--ink);
+  }
+  .strip button.active::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:2px;
+    background:var(--safelight);
+  }
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:32px;
+    margin-bottom:24px;
+  }
+  .card h2{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:22px;
+    margin-bottom:8px;
+  }
+  .card .desc{color:var(--ink-dim);font-size:14px;margin-bottom:24px;}
+
+  .drop{
+    border:1.5px dashed var(--line);
+    border-radius:6px;
+    padding:40px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop:hover, .drop.drag{
+    border-color:var(--safelight);
+    background:rgba(193,39,45,0.06);
+  }
+  .drop input{display:none;}
+  .drop .icon{font-size:28px;margin-bottom:10px;display:block;}
+  .drop .label{font-size:14px;color:var(--ink);}
+  .drop .hint{font-size:12px;color:var(--ink-dim);margin-top:4px;}
+
+  .row{display:flex;gap:24px;flex-wrap:wrap;margin-top:24px;}
+  .imgbox{
+    flex:1;min-width:220px;
+  }
+  .imgbox .cap{font-size:12px;color:var(--ink-dim);margin-bottom:8px;text-transform:none;}
+  .imgbox .frame{
+    background:repeating-conic-gradient(#332c25 0% 25%, #2a251f 0% 50%) 50% / 16px 16px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    min-height:180px;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .imgbox img{max-width:100%;max-height:340px;display:block;}
+  .imgbox .empty{color:var(--ink-dim);font-size:13px;}
+
+  .controls{display:flex;align-items:center;gap:16px;margin-top:20px;flex-wrap:wrap;}
+  .btn{
+    background:var(--safelight);
+    color:#fff;
+    border:none;
+    padding:12px 22px;
+    border-radius:4px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:filter .15s ease;
+  }
+  .btn:hover{filter:brightness(1.1);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn.ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink);
+  }
+  .status{font-size:13px;color:var(--ink-dim);}
+  .status.err{color:var(--safelight);}
+
+  .slider-row{display:flex;align-items:center;gap:14px;margin-top:18px;}
+  .slider-row label{font-size:13px;color:var(--ink-dim);min-width:110px;}
+  input[type=range]{flex:1;accent-color:var(--paper);}
+  .slider-val{font-size:13px;color:var(--ink);min-width:40px;text-align:right;}
+
+  select{
+    background:var(--surface-hi);
+    color:var(--ink);
+    border:1px solid var(--line);
+    padding:10px 12px;
+    border-radius:4px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+  }
+
+  footer{padding:40px 0 60px;color:var(--ink-dim);font-size:12px;border-top:1px solid var(--line);margin-top:20px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-row">
+    <div class="brand">Dark<span>room</span></div>
+    <div class="tagline">AI photo tools, developed in-browser</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Edit photos without the studio.</h1>
+    <p>Remove backgrounds, shrink file sizes, and sharpen up small images — three tools, one lab, no watermarks.</p>
+  </section>
+
+  <div class="strip" role="tablist">
+    <button class="active" data-tab="bg">Background remover</button>
+    <button data-tab="compress">Compressor</button>
+    <button data-tab="upscale">Upscaler</button>
+  </div>
+
+  <!-- BACKGROUND REMOVER -->
+  <div class="panel active" id="panel-bg">
+    <div class="card">
+      <h2>Background remover</h2>
+      <p class="desc">Runs a real segmentation model (rembg / U2-Net) on the server — cuts the subject out cleanly, even on busy backgrounds.</p>
+
+      <div class="drop" id="drop-bg">
+        <input type="file" id="file-bg" accept="image/*">
+        <span class="icon">◱</span>
+        <div class="label">Drop an image, or click to choose one</div>
+        <div class="hint">JPG or PNG, up to 10MB</div>
+      </div>
+
+      <div class="row" id="preview-bg" style="display:none;">
+        <div class="imgbox">
+          <div class="cap">Original</div>
+          <div class="frame"><img id="bg-original"></div>
+        </div>
+        <div class="imgbox">
+          <div class="cap">Background removed</div>
+          <div class="frame" id="bg-result-frame"><span class="empty">Result appears here</span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="btn-bg" disabled>Remove background</button>
+        <button class="btn ghost" id="dl-bg" style="display:none;">Download PNG</button>
+        <span class="status" id="status-bg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPRESSOR -->
+  <div class="panel" id="panel-compress">
+    <div class="card">
+      <h2>Image compressor</h2>
+      <p class="desc">Shrinks file size right in your browser — nothing is uploaded anywhere for this one.</p>
+
+      <div class="drop" id="drop-compress">
+        <input type="file" id="file-compress" accept="image/*">
+        <span class="icon">◱</span>
+        <div class="label">Drop an image, or click to choose one</div>
+        <div class="hint">JPG, PNG or WebP</div>
+      </div>
+
+      <div class="row" id="preview-compress" style="display:none;">
+        <div class="imgbox">
+          <div class="cap">Original <span id="size-original"></span></div>
+          <div class="frame"><img id="compress-original"></div>
+        </div>
+        <div class="imgbox">
+          <div class="cap">Compressed <span id="size-result"></span></div>
+          <div class="frame" id="compress-result-frame"><span class="empty">Result appears here</span></div>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <label for="quality">Quality</label>
+        <input type="range" id="quality" min="10" max="95" value="70">
+        <span class="slider-val" id="quality-val">70%</span>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="btn-compress" disabled>Compress</button>
+        <button class="btn ghost" id="dl-compress" style="display:none;">Download</button>
+        <span class="status" id="status-compress"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPSCALER -->
+  <div class="panel" id="panel-upscale">
+    <div class="card">
+      <h2>Image upscaler</h2>
+      <p class="desc">Enlarges small images using edge-preserving resampling with a light sharpening pass on the server.</p>
+
+      <div class="drop" id="drop-upscale">
+        <input type="file" id="file-upscale" accept="image/*">
+        <span class="icon">◱</span>
+        <div class="label">Drop an image, or click to choose one</div>
+        <div class="hint">Works best on images under 1500px wide</div>
+      </div>
+
+      <div class="row" id="preview-upscale" style="display:none;">
+        <div class="imgbox">
+          <div class="cap">Original</div>
+          <div class="frame"><img id="upscale-original"></div>
+        </div>
+        <div class="imgbox">
+          <div class="cap">Upscaled</div>
+          <div class="frame" id="upscale-result-frame"><span class="empty">Result appears here</span></div>
+        </div>
+      </div>
+
+      <div class="controls" style="margin-top:20px;">
+        <label style="font-size:13px;color:var(--ink-dim);">Scale</label>
+        <select id="upscale-factor">
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+        <button class="btn" id="btn-upscale" disabled>Upscale</button>
+        <button class="btn ghost" id="dl-upscale" style="display:none;">Download</button>
+        <span class="status" id="status-upscale"></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>Darkroom — self-hosted AI tools. Background removal and upscaling run on your Flask server; compression runs locally in the browser.</footer>
+</div>
+
+<script>
+// ---- tab switching ----
+document.querySelectorAll('.strip button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.strip button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+function setupDrop(dropId, inputId, onFile){
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  drop.addEventListener('click', ()=>input.click());
+  input.addEventListener('change', e=>{ if(e.target.files[0]) onFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(evt=>drop.addEventListener(evt, e=>{e.preventDefault();drop.classList.add('drag');}));
+  ['dragleave','drop'].forEach(evt=>drop.addEventListener(evt, e=>{e.preventDefault();drop.classList.remove('drag');}));
+  drop.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]); });
+}
+
+function fileToDataURL(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ---- BACKGROUND REMOVER ----
+let bgFile = null;
+setupDrop('drop-bg','file-bg', async (file)=>{
+  bgFile = file;
+  document.getElementById('preview-bg').style.display='flex';
+  document.getElementById('bg-original').src = await fileToDataURL(file);
+  document.getElementById('bg-result-frame').innerHTML = '<span class="empty">Result appears here</span>';
+  document.getElementById('btn-bg').disabled = false;
+  document.getElementById('dl-bg').style.display='none';
+  document.getElementById('status-bg').textContent='';
+});
+
+document.getElementById('btn-bg').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('status-bg');
+  const btn = document.getElementById('btn-bg');
+  btn.disabled = true;
+  statusEl.className='status';
+  statusEl.textContent = 'Removing background…';
+  try{
+    const fd = new FormData();
+    fd.append('image', bgFile);
+    const resp = await fetch('/api/remove-bg', {method:'POST', body:fd});
+    if(!resp.ok) throw new Error(await resp.text());
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('bg-result-frame').innerHTML = `<img src="${url}">`;
+    const dl = document.getElementById('dl-bg');
+    dl.style.display='inline-block';
+    dl.onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download='background-removed.png'; a.click(); };
+    statusEl.textContent = 'Done.';
+  }catch(err){
+    statusEl.className='status err';
+    statusEl.textContent = 'Something went wrong — check the server is running.';
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// ---- COMPRESSOR (fully client-side) ----
+let compressImg = null;
+setupDrop('drop-compress','file-compress', async (file)=>{
+  document.getElementById('preview-compress').style.display='flex';
+  const dataUrl = await fileToDataURL(file);
+  document.getElementById('compress-original').src = dataUrl;
+  document.getElementById('size-original').textContent = `(${(file.size/1024).toFixed(0)} KB)`;
+  document.getElementById('compress-result-frame').innerHTML = '<span class="empty">Result appears here</span>';
+  document.getElementById('size-result').textContent = '';
+  document.getElementById('btn-compress').disabled = false;
+  document.getElementById('dl-compress').style.display='none';
+  const img = new Image();
+  img.src = dataUrl;
+  await new Promise(r=>img.onload=r);
+  compressImg = img;
+});
+
+document.getElementById('quality').addEventListener('input', e=>{
+  document.getElementById('quality-val').textContent = e.target.value+'%';
+});
+
+document.getElementById('btn-compress').addEventListener('click', ()=>{
+  const statusEl = document.getElementById('status-compress');
+  if(!compressImg) return;
+  const quality = document.getElementById('quality').value / 100;
+  const canvas = document.createElement('canvas');
+  canvas.width = compressImg.width;
+  canvas.height = compressImg.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(compressImg, 0, 0);
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    document.getElementById('compress-result-frame').innerHTML = `<img src="${url}">`;
+    document.getElementById('size-result').textContent = `(${(blob.size/1024).toFixed(0)} KB)`;
+    const dl = document.getElementById('dl-compress');
+    dl.style.display='inline-block';
+    dl.onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download='compressed.jpg'; a.click(); };
+    statusEl.textContent = 'Done.';
+  }, 'image/jpeg', quality);
+});
+
+// ---- UPSCALER ----
+let upscaleFile = null;
+setupDrop('drop-upscale','file-upscale', async (file)=>{
+  upscaleFile = file;
+  document.getElementById('preview-upscale').style.display='flex';
+  document.getElementById('upscale-original').src = await fileToDataURL(file);
+  document.getElementById('upscale-result-frame').innerHTML = '<span class="empty">Result appears here</span>';
+  document.getElementById('btn-upscale').disabled = false;
+  document.getElementById('dl-upscale').style.display='none';
+  document.getElementById('status-upscale').textContent='';
+});
+
+document.getElementById('btn-upscale').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('status-upscale');
+  const btn = document.getElementById('btn-upscale');
+  btn.disabled = true;
+  statusEl.className='status';
+  statusEl.textContent = 'Upscaling…';
+  try{
+    const fd = new FormData();
+    fd.append('image', upscaleFile);
+    fd.append('factor', document.getElementById('upscale-factor').value);
+    const resp = await fetch('/api/upscale', {method:'POST', body:fd});
+    if(!resp.ok) throw new Error(await resp.text());
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('upscale-result-frame').innerHTML = `<img src="${url}">`;
+    const dl = document.getElementById('dl-upscale');
+    dl.style.display='inline-block';
+    dl.onclick = ()=>{ const a=document.createElement('a'); a.href=url; a.download='upscaled.png'; a.click(); };
+    statusEl.textContent = 'Done.';
+  }catch(err){
+    statusEl.className='status err';
+    statusEl.textContent = 'Something went wrong — check the server is running.';
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
